@@ -17,7 +17,7 @@ setup.data: setup.bin
 	./setup.bin -configure $(LWT) $(ASYNC) $(LWT_UNIX) $(JS) $(TESTS) --prefix $(PREFIX)
 
 build: setup.data setup.bin
-	./setup.bin -build -classic-display
+	./setup.bin -build 
 
 doc: setup.data setup.bin
 	./setup.bin -doc

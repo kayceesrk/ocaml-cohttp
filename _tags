@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 6cd0646d2278cea5898ace940b519331)
+# DO NOT EDIT (digest: 7e485660a34bfd380500373c75b13b74)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -66,6 +66,20 @@ true: annot, bin_annot
 <lwt-core/*.ml{,i,y}>: pkg_uri
 <lwt-core/*.ml{,i,y}>: pkg_uri.services
 <lwt-core/*.ml{,i,y}>: use_cohttp
+# Library cohttp_effect
+"effect/cohttp_effect.cmxs": use_cohttp_effect
+<effect/*.ml{,i,y}>: pkg_aeio
+<effect/*.ml{,i,y}>: pkg_base64
+<effect/*.ml{,i,y}>: pkg_bytes
+<effect/*.ml{,i,y}>: pkg_fieldslib
+<effect/*.ml{,i,y}>: pkg_fieldslib.syntax
+<effect/*.ml{,i,y}>: pkg_re.emacs
+<effect/*.ml{,i,y}>: pkg_sexplib
+<effect/*.ml{,i,y}>: pkg_sexplib.syntax
+<effect/*.ml{,i,y}>: pkg_stringext
+<effect/*.ml{,i,y}>: pkg_uri
+<effect/*.ml{,i,y}>: pkg_uri.services
+<effect/*.ml{,i,y}>: use_cohttp
 # Library cohttp_lwt_unix
 "lwt/cohttp_lwt_unix.cmxs": use_cohttp_lwt_unix
 # Library cohttp_lwt_xhr

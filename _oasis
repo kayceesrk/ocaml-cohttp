@@ -91,6 +91,16 @@ Library cohttp_lwt
   XMETARequires: lwt, uri, cohttp
   Modules:       Cohttp_lwt_body, Cohttp_lwt, Cohttp_lwt_s, String_io_lwt
 
+Library cohttp_effect
+  Build$:        true
+  Install$:      true
+  Path:          effect
+  Findlibname:   effect
+  FindlibParent: cohttp
+  BuildDepends:  aeio, uri, cohttp
+  XMETARequires: aeio, uri, cohttp
+  Modules:       Cohttp_effect_body, Cohttp_effect, Cohttp_effect_s, String_io_effect
+
 Library cohttp_lwt_unix
   Build$:        flag(lwt_unix)
   Install$:      flag(lwt_unix)
