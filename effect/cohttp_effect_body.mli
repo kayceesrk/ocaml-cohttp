@@ -16,23 +16,23 @@
 
 type t = [
   | Cohttp.Body.t
-  | `Stream of string Lwt_stream.t
+  | `Stream of string Cohttp_effect_stream.t
 ] with sexp
 
 include Cohttp.S.Body with type t := t
 
-val is_empty : t -> bool Lwt.t
+val is_empty : t -> bool 
 
-val to_string : t -> string Lwt.t
-val to_string_list : t -> string list Lwt.t
+val to_string : t -> string 
+val to_string_list : t -> string list 
 
-val to_stream : t -> string Lwt_stream.t
-val of_stream : string Lwt_stream.t -> t
+val to_stream : t -> string Cohttp_effect_stream.t
+val of_stream : string Cohttp_effect_stream.t -> t
 
-val create_stream : ('a -> Cohttp.Transfer.chunk Lwt.t) -> 'a -> string Lwt_stream.t
+val create_stream : ('a -> Cohttp.Transfer.chunk) -> 'a -> string Cohttp_effect_stream.t
 
-val length : t -> (int64 * t) Lwt.t
+val length : t -> (int64 * t) 
 
-val write_body : (string -> unit Lwt.t) -> t -> unit Lwt.t
+val write_body : (string -> unit) -> t -> unit 
 
-val drain_body : t -> unit Lwt.t
+val drain_body : t -> unit

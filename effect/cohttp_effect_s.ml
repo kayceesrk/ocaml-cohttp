@@ -1,3 +1,5 @@
+type 'a stream = 'a Cohttp_effect_stream.t
+
 open Cohttp
 
 (** Portable Lwt implementation of HTTP client and server, without
@@ -5,7 +7,7 @@ open Cohttp
     functors must be instantiated by an implementation that provides
     a concrete IO monad. *)
 
-module type IO = S.IO with type 'a t = 'a Lwt.t
+module type IO = S.IO with type 'a t = 'a 
 (** The IO module is specialized for the [Lwt] monad. *)
 
 (** The [Net] module type defines how to connect to a remote node
@@ -14,7 +16,7 @@ module type Net = sig
   module IO : IO
   type ctx with sexp_of
   val default_ctx: ctx
-  val connect_uri : ctx:ctx -> Uri.t -> (IO.conn * IO.ic * IO.oc) Lwt.t
+  val connect_uri : ctx:ctx -> Uri.t -> (IO.conn * IO.ic * IO.oc)
   val close_in : IO.ic -> unit
   val close_out : IO.oc -> unit
   val close : IO.ic -> IO.oc -> unit
@@ -22,7 +24,7 @@ end
 
 (** The [Client] module implements non-pipelined single HTTP client
     calls.  Each call will open a separate {! Net } connection.  For
-    best results, the {! Cohttp_lwt_body } that is returned should be
+    best results, the {! Cohttp_effect_body } that is returned should be
     consumed in order to close the file descriptor in a timely
     fashion.  It will still be finalized by a GC hook if it is not used
     up, but this can take some additional time to happen. *)
@@ -45,60 +47,60 @@ module type Client = sig
   val call :
     ?ctx:ctx ->
     ?headers:Cohttp.Header.t ->
-    ?body:Cohttp_lwt_body.t ->
+    ?body:Cohttp_effect_body.t ->
     ?chunked:bool ->
     Cohttp.Code.meth ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t)
 
   val head :
     ?ctx:ctx ->
     ?headers:Cohttp.Header.t ->
-    Uri.t -> Response.t Lwt.t
+    Uri.t -> Response.t 
 
   val get :
     ?ctx:ctx ->
     ?headers:Cohttp.Header.t ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t) 
 
   val delete :
     ?ctx:ctx ->
-    ?body:Cohttp_lwt_body.t ->
+    ?body:Cohttp_effect_body.t ->
     ?chunked:bool ->
     ?headers:Cohttp.Header.t ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t) 
 
   val post :
     ?ctx:ctx ->
-    ?body:Cohttp_lwt_body.t ->
+    ?body:Cohttp_effect_body.t ->
     ?chunked:bool ->
     ?headers:Cohttp.Header.t ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t) 
 
   val put :
     ?ctx:ctx ->
-    ?body:Cohttp_lwt_body.t ->
+    ?body:Cohttp_effect_body.t ->
     ?chunked:bool ->
     ?headers:Cohttp.Header.t ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t) 
 
   val patch :
     ?ctx:ctx ->
-    ?body:Cohttp_lwt_body.t ->
+    ?body:Cohttp_effect_body.t ->
     ?chunked:bool ->
     ?headers:Cohttp.Header.t ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t) 
 
   val post_form :
     ?ctx:ctx ->
     ?headers:Cohttp.Header.t ->
     params:(string * string list) list ->
-    Uri.t -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    Uri.t -> (Response.t * Cohttp_effect_body.t) 
 
   val callv :
     ?ctx:ctx ->
     Uri.t ->
-    (Request.t * Cohttp_lwt_body.t) Lwt_stream.t ->
-    (Response.t * Cohttp_lwt_body.t) Lwt_stream.t Lwt.t
+    (Request.t * Cohttp_effect_body.t) stream ->
+    (Response.t * Cohttp_effect_body.t) stream
 end
 
 (** The [Server] module implements a pipelined HTTP/1.1 server. *)
@@ -110,8 +112,8 @@ module type Server = sig
   type t
 
   val make : ?conn_closed:(conn -> unit)
-    -> callback:(conn -> Cohttp.Request.t -> Cohttp_lwt_body.t
-                 -> (Cohttp.Response.t * Cohttp_lwt_body.t) Lwt.t)
+    -> callback:(conn -> Cohttp.Request.t -> Cohttp_effect_body.t
+                 -> (Cohttp.Response.t * Cohttp_effect_body.t))
     -> unit -> t
 
   (** Resolve a URI and a docroot into a concrete local filename. *)
@@ -129,29 +131,29 @@ module type Server = sig
     ?headers:Cohttp.Header.t ->
     ?flush:bool ->
     status:Cohttp.Code.status_code ->
-    body:Cohttp_lwt_body.t -> unit -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    body:Cohttp_effect_body.t -> unit -> (Response.t * Cohttp_effect_body.t) 
 
   val respond_string :
     ?headers:Cohttp.Header.t ->
     status:Cohttp.Code.status_code ->
-    body:string -> unit -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    body:string -> unit -> (Response.t * Cohttp_effect_body.t) 
 
   val respond_error :
     ?headers:Header.t ->
     ?status:Cohttp.Code.status_code ->
-    body:string -> unit -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    body:string -> unit -> (Response.t * Cohttp_effect_body.t) 
 
   val respond_redirect :
     ?headers:Cohttp.Header.t ->
-    uri:Uri.t -> unit -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    uri:Uri.t -> unit -> (Response.t * Cohttp_effect_body.t) 
 
   val respond_need_auth :
     ?headers:Cohttp.Header.t ->
-    auth:Cohttp.Auth.challenge -> unit -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    auth:Cohttp.Auth.challenge -> unit -> (Response.t * Cohttp_effect_body.t) 
 
   val respond_not_found :
-    ?uri:Uri.t -> unit -> (Response.t * Cohttp_lwt_body.t) Lwt.t
+    ?uri:Uri.t -> unit -> (Response.t * Cohttp_effect_body.t) 
 
-  val callback : t -> IO.conn -> IO.ic -> IO.oc -> unit Lwt.t
+  val callback : t -> IO.conn -> IO.ic -> IO.oc -> unit 
 
 end

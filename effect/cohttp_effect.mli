@@ -21,10 +21,10 @@ open Cohttp
     functors must be instantiated by an implementation that provides
     a concrete IO monad. *)
 
-module type IO = S.IO with type 'a t = 'a Lwt.t
+module type IO = S.IO with type 'a t = 'a
 (** The IO module is specialized for the [Lwt] monad. *)
 
-module S : (module type of Cohttp_lwt_s)
+module S : (module type of Cohttp_effect_s)
 
 (** Aliases for module types inside S. These are deprecated and are only
     here for backwards comaptibility *)
@@ -32,7 +32,7 @@ module type Client = S.Client
 module type Server = S.Server
 module type Net = S.Net
 
-open Cohttp_lwt_s
+open Cohttp_effect_s
 
 module Request : (Cohttp.S.Request with type t = Cohttp.Request.t)
 module Response : (Cohttp.S.Response with type t = Cohttp.Response.t)

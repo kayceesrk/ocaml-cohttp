@@ -15,9 +15,9 @@
  *
   }}}*)
 
-type 'a t = 'a Lwt.t
-let return = Lwt.return
-let (>>=) = Lwt.bind
+type 'a t = 'a 
+let return a = a 
+let (>>=) = (|>)
 
 type ic = Cohttp.String_io.M.ic
 type oc = Cohttp.String_io.M.oc
@@ -28,4 +28,3 @@ let read ic n = return (Cohttp.String_io.M.read ic n)
 
 let write oc str = return (Cohttp.String_io.M.write oc str)
 let flush oc = return (Cohttp.String_io.M.flush oc)
-

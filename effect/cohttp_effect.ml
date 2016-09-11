@@ -14,14 +14,14 @@
  *
   }}}*)
 
+
 open Cohttp
-open Lwt
 
-module Body = Cohttp_lwt_body
+module Body = Cohttp_effect_body
 
-module type IO = S.IO with type 'a t = 'a Lwt.t
+module type IO = S.IO with type 'a t = 'a 
 
-module S = Cohttp_lwt_s
+module S = Cohttp_effect_s
 
 module type Client = S.Client
 module type Server = S.Server
@@ -42,7 +42,7 @@ module Response = Cohttp.Response
 
 module Make_client
     (IO:IO)
-    (Net:Cohttp_lwt_s.Net with module IO = IO) = struct
+    (Net:Cohttp_effect_s.Net with module IO = IO) = struct
 
   module IO = IO
   module Response = Make_response(IO)
@@ -52,10 +52,10 @@ module Make_client
   let default_ctx = Net.default_ctx
 
   let read_response ~closefn ic oc meth =
-    Response.read ic >>= function
+    match Response.read ic with
     | `Invalid reason ->
-      Lwt.fail (Failure ("Failed to read response: " ^ reason))
-    | `Eof -> Lwt.fail (Failure "Client connection was closed")
+      raise (Failure ("Failed to read response: " ^ reason))
+    | `Eof -> raise (Failure "Client connection was closed")
     | `Ok res -> begin
         let has_body = match meth with
           | `HEAD -> `No
@@ -66,14 +66,14 @@ module Make_client
           let reader = Response.make_body_reader res ic in
           let stream = Body.create_stream Response.read_body_chunk reader in
           let closefn = closefn in
-          Lwt_stream.on_terminate stream closefn;
+          Cohttp_effect_stream.on_terminate stream closefn;
           let gcfn st = closefn () in
           Gc.finalise gcfn stream;
           let body = Body.of_stream stream in
-          return (res, body)
+          (res, body)
         | `No ->
           closefn ();
-          return (res, `Empty)
+          (res, `Empty)
       end
 
   let is_meth_chunked = function
@@ -84,7 +84,7 @@ module Make_client
 
   let call ?(ctx=default_ctx) ?headers ?(body=`Empty) ?chunked meth uri =
     let headers = match headers with None -> Header.init () | Some h -> h in
-    Net.connect_uri ~ctx uri >>= fun (conn, ic, oc) ->
+    let (conn, ic, oc) = Net.connect_uri ~ctx uri in
     let closefn () = Net.close ic oc in
     let chunked =
       match chunked with
@@ -98,20 +98,19 @@ module Make_client
       | false ->
         (* If chunked is not allowed, then obtain the body length and
            insert header *)
-        Body.length body >>= fun (body_length, buf) ->
+        let (body_length, buf) = Body.length body in
         let req =
           Request.make_for_client ~headers ~chunked ~body_length meth uri
         in
         Request.write (fun writer ->
           Body.write_body (Request.write_body writer) buf) req oc
     in
-    sent >>= fun () ->
+    sent;
     read_response ~closefn ic oc meth
 
   (* The HEAD should not have a response body *)
   let head ?ctx ?headers uri =
-    call ?headers `HEAD uri
-    >|= fst
+    fst @@ call ?headers `HEAD uri
 
   let get ?ctx ?headers uri = call ?ctx ?headers `GET uri
   let delete ?ctx ?body ?chunked ?headers uri =
@@ -130,33 +129,32 @@ module Make_client
     post ?ctx ~chunked:false ~headers ~body uri
 
   let callv ?(ctx=default_ctx) uri reqs =
-    Net.connect_uri ~ctx uri >>= fun (conn, ic, oc) ->
+    let (conn, ic, oc) = Net.connect_uri ~ctx uri in
     (* Serialise the requests out to the wire *)
-    let meth_stream = Lwt_stream.map_s (fun (req,body) ->
+    let meth_stream = Cohttp_effect_stream.map (fun (req,body) ->
       Request.write (fun writer ->
-        Body.write_body (Request.write_body writer) body
-      ) req oc >>= fun () ->
-      return (Request.meth req)
+        Body.write_body (Request.write_body writer) body) req oc;
+      Request.meth req
     ) reqs in
     (* Read the responses. For each response, ensure that the previous
        response has consumed the body before continuing to the next
        response because HTTP/1.1-pipelining cannot be interleaved. *)
-    let read_m = Lwt_mutex.create () in
+    let read_m = Aeio.create_mutex () in
     let last_body = ref None in
-    let closefn () = Lwt_mutex.unlock read_m in
-    let resps = Lwt_stream.map_s (fun meth ->
+    let closefn () = Aeio.unlock read_m in
+    let resps = Cohttp_effect_stream.map (fun meth ->
       begin match !last_body with
-      | None -> return_unit
+      | None -> ()
       | Some body -> Body.drain_body body
-      end >>= fun () ->
-      Lwt_mutex.with_lock read_m (fun () -> read_response ~closefn ic oc meth)
-      >|= (fun ((_,body) as x) ->
-        last_body := Some body;
-        x
-      )
+      end;
+      let (_,body as x) = Aeio.with_lock read_m 
+        (fun () -> read_response ~closefn ic oc meth) 
+      in
+      last_body := Some body;
+      x
     ) meth_stream in
-    Lwt_stream.on_terminate resps (fun () -> Net.close ic oc);
-    return resps
+    Cohttp_effect_stream.on_terminate resps (fun () -> Net.close ic oc);
+    resps
 end
 
 
@@ -172,7 +170,7 @@ module Make_server(IO:IO) = struct
       conn ->
       Cohttp.Request.t ->
       Body.t ->
-      (Cohttp.Response.t * Body.t) Lwt.t;
+      (Cohttp.Response.t * Body.t);
     conn_closed: conn -> unit;
   }
 
@@ -196,14 +194,14 @@ module Make_server(IO:IO) = struct
         | t -> t
     in
     let res = Response.make ~status ~flush ~encoding ?headers () in
-    return (res, body)
+    (res, body)
 
   let respond_string ?headers ~status ~body () =
     let res = Response.make ~status
                 ~encoding:(Transfer.Fixed (Int64.of_int (String.length body)))
                 ?headers () in
     let body = Body.of_string body in
-    return (res,body)
+    (res,body)
 
   let respond_error ?headers ?(status=`Internal_server_error) ~body () =
     respond_string ?headers ~status ~body:("Error: "^body) ()
@@ -230,19 +228,19 @@ module Make_server(IO:IO) = struct
   let request_stream ic =
     (* don't try to read more from ic until the previous request has
        been fully read an released this mutex *)
-    let read_m = Lwt_mutex.create () in
+    let read_m = Aeio.create_mutex () in
     (* If the request is HTTP version 1.0 then the request stream should be
        considered closed after the first request/response. *)
     let early_close = ref false in
-    Lwt_stream.from begin fun () ->
+    Cohttp_effect_stream.from begin fun () ->
       if !early_close
-      then return_none
-      else
-        Lwt_mutex.lock read_m >>= fun () ->
-        Request.read ic >>= function
+      then None
+      else begin
+        Aeio.lock read_m;
+        match Request.read ic with
         | `Eof | `Invalid _ -> (* TODO: request logger for invalid req *)
-          Lwt_mutex.unlock read_m;
-          return_none
+          Aeio.unlock read_m;
+          None
         | `Ok req -> begin
             early_close := not (Request.is_keep_alive req);
             (* Ensure the input body has been fully read before reading
@@ -252,28 +250,31 @@ module Make_server(IO:IO) = struct
               let reader = Request.make_body_reader req ic in
               let body_stream = Body.create_stream
                                   Request.read_body_chunk reader in
-              Lwt_stream.on_terminate body_stream
-                (fun () -> Lwt_mutex.unlock read_m);
+              Cohttp_effect_stream.on_terminate body_stream
+                (fun () -> Aeio.unlock read_m);
               let body = Body.of_stream body_stream in
               (* The read_m remains locked until the caller reads the body *)
-              return (Some (req, body))
+              Some (req, body)
             (* TODO for now we are just repeating the old behaviour
              * of ignoring the body in the request. Perhaps it should be
              * changed it did for responses *)
             | `No | `Unknown ->
-              Lwt_mutex.unlock read_m;
-              return (Some (req, `Empty))
+              Aeio.unlock read_m;
+              Some (req, `Empty)
           end
+      end
     end
 
   let response_stream callback io_id conn_id req_stream =
-    Lwt_stream.map_s (fun (req, body) ->
-      Lwt.finalize
-        (fun () ->
-           Lwt.catch
-             (fun () -> callback (io_id, conn_id) req body)
-             (fun _exn -> respond_error ~body:"Internal Server Error" ()))
-        (fun () -> Body.drain_body body)
+    Cohttp_effect_stream.map (fun (req, body) ->
+      let res = 
+        try
+        callback (io_id, conn_id) req body
+        with
+        | _exn -> respond_error ~body:"Internal Server Error" ()
+      in
+      Body.drain_body body;
+      res
     ) req_stream
 
   let callback spec io_id ic oc =
@@ -286,9 +287,9 @@ module Make_server(IO:IO) = struct
     let res_stream = response_stream spec.callback io_id conn_id req_stream in
     (* Clean up resources when the response stream terminates and call
      * the user callback *)
-    Lwt_stream.on_terminate res_stream conn_closed;
+    Cohttp_effect_stream.on_terminate res_stream conn_closed;
     (* Transmit the responses *)
-    res_stream |> Lwt_stream.iter_s (fun (res,body) ->
+    res_stream |> Cohttp_effect_stream.iter (fun (res,body) ->
       let flush = Response.flush res in
       Response.write ~flush (fun writer ->
         Body.write_body (Response.write_body writer) body

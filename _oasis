@@ -99,7 +99,7 @@ Library cohttp_effect
   FindlibParent: cohttp
   BuildDepends:  aeio, uri, cohttp
   XMETARequires: aeio, uri, cohttp
-  Modules:       Cohttp_effect_body, Cohttp_effect, Cohttp_effect_s, String_io_effect
+  Modules:       Cohttp_effect_stream, Cohttp_effect_body, Cohttp_effect, Cohttp_effect_s, String_io_effect
 
 Library cohttp_lwt_unix
   Build$:        flag(lwt_unix)

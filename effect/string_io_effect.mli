@@ -22,6 +22,6 @@
    use, although a future revision may yield when parsing large
    strings. *)
 include Cohttp.S.IO
-  with type 'a t = 'a Lwt.t
+  with type 'a t = 'a 
   and type ic = Cohttp.String_io.buf
   and type oc = Buffer.t
