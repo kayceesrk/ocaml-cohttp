@@ -297,3 +297,4 @@ module Make_server(IO:IO) = struct
     )
 end
 
+module Stream = Cohttp_effect_stream

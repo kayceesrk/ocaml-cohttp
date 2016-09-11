@@ -34,6 +34,8 @@ module type Net = S.Net
 
 open Cohttp_effect_s
 
+module Stream : (module type of Cohttp_effect_stream)
+
 module Request : (Cohttp.S.Request with type t = Cohttp.Request.t)
 module Response : (Cohttp.S.Response with type t = Cohttp.Response.t)
 
