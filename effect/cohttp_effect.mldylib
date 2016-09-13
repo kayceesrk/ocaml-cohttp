@@ -1,5 +1,8 @@
 # OASIS_START
-# DO NOT EDIT (digest: 979faaebff6996944adca5d61676d70d)
+# DO NOT EDIT (digest: 2cc4c59743b6a2dbc2b878d62521176d)
+Cohttp_effect_channel
+Cohttp_effect_io
+Cohttp_effect_flow
 Cohttp_effect_body
 Cohttp_effect
 Cohttp_effect_s

@@ -97,9 +97,9 @@ Library cohttp_effect
   Path:          effect
   Findlibname:   effect
   FindlibParent: cohttp
-  BuildDepends:  aeio, uri, cohttp
+  BuildDepends:  aeio, uri, cohttp, mirage-types, cstruct, io-page
   XMETARequires: aeio, uri, cohttp
-  Modules:       Cohttp_effect_body, Cohttp_effect, Cohttp_effect_s, String_io_effect
+  Modules:       Cohttp_effect_channel, Cohttp_effect_io, Cohttp_effect_flow, Cohttp_effect_body, Cohttp_effect, Cohttp_effect_s, String_io_effect
 
 Library cohttp_lwt_unix
   Build$:        flag(lwt_unix)
