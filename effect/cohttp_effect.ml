@@ -66,7 +66,7 @@ module Make_client
           let reader = Response.make_body_reader res ic in
           let stream = Body.create_stream Response.read_body_chunk reader in
           let closefn = closefn in
-          Cohttp_effect_stream.on_terminate stream closefn;
+          Aeio.Stream.on_terminate stream closefn;
           let gcfn st = closefn () in
           Gc.finalise gcfn stream;
           let body = Body.of_stream stream in
@@ -131,7 +131,7 @@ module Make_client
   let callv ?(ctx=default_ctx) uri reqs =
     let (conn, ic, oc) = Net.connect_uri ~ctx uri in
     (* Serialise the requests out to the wire *)
-    let meth_stream = Cohttp_effect_stream.map (fun (req,body) ->
+    let meth_stream = Aeio.Stream.map (fun (req,body) ->
       Request.write (fun writer ->
         Body.write_body (Request.write_body writer) body) req oc;
       Request.meth req
@@ -142,7 +142,7 @@ module Make_client
     let read_m = Aeio.create_mutex () in
     let last_body = ref None in
     let closefn () = Aeio.unlock read_m in
-    let resps = Cohttp_effect_stream.map (fun meth ->
+    let resps = Aeio.Stream.map (fun meth ->
       begin match !last_body with
       | None -> ()
       | Some body -> Body.drain_body body
@@ -153,7 +153,7 @@ module Make_client
       last_body := Some body;
       x
     ) meth_stream in
-    Cohttp_effect_stream.on_terminate resps (fun () -> Net.close ic oc);
+    Aeio.Stream.on_terminate resps (fun () -> Net.close ic oc);
     resps
 end
 
@@ -232,7 +232,7 @@ module Make_server(IO:IO) = struct
     (* If the request is HTTP version 1.0 then the request stream should be
        considered closed after the first request/response. *)
     let early_close = ref false in
-    Cohttp_effect_stream.from begin fun () ->
+    Aeio.Stream.from begin fun () ->
       if !early_close
       then None
       else begin
@@ -250,7 +250,7 @@ module Make_server(IO:IO) = struct
               let reader = Request.make_body_reader req ic in
               let body_stream = Body.create_stream
                                   Request.read_body_chunk reader in
-              Cohttp_effect_stream.on_terminate body_stream
+              Aeio.Stream.on_terminate body_stream
                 (fun () -> Aeio.unlock read_m);
               let body = Body.of_stream body_stream in
               (* The read_m remains locked until the caller reads the body *)
@@ -266,7 +266,7 @@ module Make_server(IO:IO) = struct
     end
 
   let response_stream callback io_id conn_id req_stream =
-    Cohttp_effect_stream.map (fun (req, body) ->
+    Aeio.Stream.map (fun (req, body) ->
       let res = 
         try
         callback (io_id, conn_id) req body
@@ -287,14 +287,12 @@ module Make_server(IO:IO) = struct
     let res_stream = response_stream spec.callback io_id conn_id req_stream in
     (* Clean up resources when the response stream terminates and call
      * the user callback *)
-    Cohttp_effect_stream.on_terminate res_stream conn_closed;
+    Aeio.Stream.on_terminate res_stream conn_closed;
     (* Transmit the responses *)
-    res_stream |> Cohttp_effect_stream.iter (fun (res,body) ->
+    res_stream |> Aeio.Stream.iter (fun (res,body) ->
       let flush = Response.flush res in
       Response.write ~flush (fun writer ->
         Body.write_body (Response.write_body writer) body
       ) res oc
     )
 end
-
-module Stream = Cohttp_effect_stream

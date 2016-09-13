@@ -16,7 +16,7 @@
 
 type t = [
   | Cohttp.Body.t
-  | `Stream of string Cohttp_effect_stream.t
+  | `Stream of string Aeio.Stream.t
 ] with sexp
 
 include Cohttp.S.Body with type t := t
@@ -26,10 +26,10 @@ val is_empty : t -> bool
 val to_string : t -> string 
 val to_string_list : t -> string list 
 
-val to_stream : t -> string Cohttp_effect_stream.t
-val of_stream : string Cohttp_effect_stream.t -> t
+val to_stream : t -> string Aeio.Stream.t
+val of_stream : string Aeio.Stream.t -> t
 
-val create_stream : ('a -> Cohttp.Transfer.chunk) -> 'a -> string Cohttp_effect_stream.t
+val create_stream : ('a -> Cohttp.Transfer.chunk) -> 'a -> string Aeio.Stream.t
 
 val length : t -> (int64 * t) 
 

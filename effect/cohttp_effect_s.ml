@@ -1,4 +1,4 @@
-type 'a stream = 'a Cohttp_effect_stream.t
+type 'a stream = 'a Aeio.Stream.t
 
 open Cohttp
 

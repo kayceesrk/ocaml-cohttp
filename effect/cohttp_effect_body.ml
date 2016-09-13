@@ -20,7 +20,7 @@ open Sexplib.Conv
 
 type t = [
   | Body.t
-  | `Stream of string Cohttp_effect_stream.t
+  | `Stream of string Aeio.Stream.t
 ] with sexp
 
 let empty = (Body.empty :> t)
@@ -37,41 +37,41 @@ let create_stream fn arg =
       | Transfer.Chunk c -> Some c
       end 
   in
-  Cohttp_effect_stream.mk_stream fin stream
+  Aeio.Stream.mk_stream fin stream
 
 let is_empty (body:t) =
   match body with
   | #Body.t as body -> (Body.is_empty body)
-  | `Stream s -> Cohttp_effect_stream.is_empty s
+  | `Stream s -> Aeio.Stream.is_empty s
 
 let to_string (body:t) =
   match body with
   | #Body.t as body -> Body.to_string body
   |`Stream s ->
     let b = Buffer.create 1024 in
-    Cohttp_effect_stream.iter (Buffer.add_string b) s;
+    Aeio.Stream.iter (Buffer.add_string b) s;
     Buffer.contents b
 
 let to_string_list (body:t) =
   match body with
   | #Body.t as body -> Body.to_string_list body
-  |`Stream s -> Cohttp_effect_stream.to_list s
+  |`Stream s -> Aeio.Stream.to_list s
 
 let of_string s = ((Body.of_string s) :> t)
 
 let to_stream (body:t) =
   match body with
-  |`Empty -> Cohttp_effect_stream.of_list []
+  |`Empty -> Aeio.Stream.of_list []
   |`Stream s -> s
-  |`String s -> Cohttp_effect_stream.of_list [s]
-  |`Strings sl -> Cohttp_effect_stream.of_list sl
+  |`String s -> Aeio.Stream.of_list [s]
+  |`Strings sl -> Aeio.Stream.of_list sl
 
 let drain_body (body:t) =
   match body with
   |`Empty
   |`String _
   |`Strings _ -> ()
-  |`Stream s -> Cohttp_effect_stream.junk_while (fun _ -> true) s
+  |`Stream s -> Aeio.Stream.junk_while (fun _ -> true) s
 
 let of_string_list l = `Strings l
 
@@ -93,11 +93,11 @@ let length (body:t) : (int64 * t) =
 
 let write_body fn = function
   |`Empty -> ()
-  |`Stream st -> Cohttp_effect_stream.iter fn st
+  |`Stream st -> Aeio.Stream.iter fn st
   |`String s -> fn s
   |`Strings sl -> List.iter fn sl
 
 let map f t =
   match t with
   | #Body.t as t -> (Body.map f t :> t)
-  | `Stream s -> `Stream (Cohttp_effect_stream.map f s)
+  | `Stream s -> `Stream (Aeio.Stream.map f s)
