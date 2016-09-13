@@ -283,6 +283,14 @@ Executable test_net_lwt_client_and_server
   Install:            false
   BuildDepends:       cohttp, cohttp.lwt
 
+Executable test_net_lwt_client_and_effect_server
+  Path:               lib_test
+  MainIs:             test_net_lwt_client_and_effect_server.ml
+  Build$:             flag(lwt_unix)
+  CompiledObject:     best
+  Install:            false
+  BuildDepends:       cohttp, cohttp.lwt, cohttp.effect
+
 Executable test_net_async
   Path:               lib_test
   MainIs:             test_net_async.ml
